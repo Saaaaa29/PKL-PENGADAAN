@@ -1,4 +1,4 @@
-# SIPPA - Sistem Informasi Perencanaan & Pengadaan
+# SIPEKA - Sistem Pengadaan Kegiatan
 **Web-based Procurement Budget Dashboard**
 
 ## 🚀 Cara Instalasi di XAMPP
