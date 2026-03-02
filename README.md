@@ -1,7 +1,7 @@
 # SIPEKA - Sistem Pengadaan Kegiatan
 **Web-based Procurement Budget Dashboard**
 
-## 🚀 Cara Instalasi di XAMPP
+## Cara Instalasi di XAMPP
 
 ### 1. Copy Project
 Salin folder `procurement` ke:
@@ -32,11 +32,11 @@ Buka browser: **http://localhost/procurement**
 | Username | `admin`    |
 | Password | `admin123` |
 
-> ⚠️ **Ganti password setelah login pertama!**
+>  **Ganti password setelah login pertama!**
 
 ---
 
-## 📁 Struktur Folder
+##  Struktur Folder
 ```
 procurement/
 ├── config/
@@ -82,9 +82,9 @@ procurement/
 
 ---
 
-## ✨ Fitur Utama
+##  Fitur Utama
 
-### 🗓️ Rencana Kegiatan
+###  Rencana Kegiatan
 - Input rencana dengan volume, satuan, nilai satuan
 - **Nilai anggaran otomatis** = volume × nilai satuan
 - **Metode pengadaan otomatis** berdasarkan nilai:
@@ -95,7 +95,7 @@ procurement/
 - Jadwal per bulan (Januari - Desember)
 - Cetak tabel jadwal & export Excel
 
-### ✅ Realisasi Kegiatan
+### Realisasi Kegiatan
 - **Pilih multi rencana** dalam satu nomor kontrak
 - **Tambah item baru** di luar rencana (ad-hoc)
 - Edit detail item (volume, nilai bisa berbeda dari rencana)
@@ -103,21 +103,21 @@ procurement/
 - Tanggal selesai opsional (untuk barang tidak perlu)
 - Status: Proses / Selesai / Batal
 
-### 📊 Laporan
+### Laporan
 - Perbandingan rencana vs realisasi
 - Selisih biaya & persentase serapan
 - Grafik batang & donut interaktif (Chart.js)
 - Filter per tahun & jenis pengadaan
 - Export Excel & cetak PDF
 
-### 🔐 Keamanan
+### Keamanan
 - Login/logout dengan session
 - Password di-hash dengan bcrypt
 - Role-based access (admin/user)
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 - **Backend**: PHP Native (tanpa framework)
 - **Database**: MySQL via MySQLi
 - **Frontend**: Bootstrap 5
@@ -127,7 +127,7 @@ procurement/
 
 ---
 
-## ❓ Troubleshooting
+## Troubleshooting
 
 **Login gagal:**
 - Pastikan database sudah diimport
