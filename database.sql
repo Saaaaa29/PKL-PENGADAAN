@@ -63,6 +63,18 @@ CREATE TABLE IF NOT EXISTS realisasi_detail (
     FOREIGN KEY (rencana_id) REFERENCES rencana_kegiatan(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
+CREATE TABLE realisasi_vendor (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    realisasi_id    INT NOT NULL,
+    nama_vendor     VARCHAR(255) NOT NULL,
+    nomor_kontrak   VARCHAR(100) DEFAULT NULL,
+    tanggal_kontrak DATE         DEFAULT NULL,
+    nilai_kontrak   DECIMAL(15,2) DEFAULT 0,
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (realisasi_id) 
+        REFERENCES realisasi_kegiatan(id) 
+        ON DELETE CASCADE
+);
 -- ================================================================
 -- AKUN ADMIN DEFAULT
 -- Password disimpan dalam format PLAIN TEXT sementara.

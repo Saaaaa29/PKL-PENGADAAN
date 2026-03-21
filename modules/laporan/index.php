@@ -59,60 +59,52 @@ $totalLuar = (float)($luarQ->fetch_assoc()['total'] ?? 0);
 $rows = [];
 while ($r = $laporan->fetch_assoc()) $rows[] = $r;
 
+// Sisa anggaran untuk donut
+$sisaAnggaran = max(0, $totalRencana - $totalRealisasi);
+
 // ================================================================
 // DATA UNTUK CHART (BULAN, JENIS, METODE)
 // ================================================================
-
-// -------------------------------------------------------
-// Data chart: per BULAN
-// -------------------------------------------------------
 $chartBulanLabels    = [];
 $chartBulanRencana   = [];
 $chartBulanRealisasi = [];
 
-// Cek tipe kolom bulan_rencana
 $cekKolom   = $db->query("SHOW COLUMNS FROM rencana_kegiatan LIKE 'bulan_rencana'");
 $infoKolom  = $cekKolom ? $cekKolom->fetch_assoc() : null;
 $isVarchar  = $infoKolom && stripos($infoKolom['Type'], 'varchar') !== false;
 
 for ($i = 1; $i <= 12; $i++) {
-    // Data rencana per bulan
-    if ($isVarchar) {
-        $q = $db->query("SELECT SUM(nilai_anggaran) as total FROM rencana_kegiatan
-                         WHERE tahun = $tahun AND FIND_IN_SET($i, bulan_rencana)");
-    } else {
-        $q = $db->query("SELECT SUM(nilai_anggaran) as total FROM rencana_kegiatan
-                         WHERE tahun = $tahun AND bulan_rencana = $i");
-    }
-    
     if ($jenis) {
         if ($isVarchar) {
             $q = $db->query("SELECT SUM(nilai_anggaran) as total FROM rencana_kegiatan
-                             WHERE tahun = $tahun AND jenis_pengadaan = '$jenis' 
+                             WHERE tahun = $tahun AND jenis_pengadaan = '$jenis'
                              AND FIND_IN_SET($i, bulan_rencana)");
         } else {
             $q = $db->query("SELECT SUM(nilai_anggaran) as total FROM rencana_kegiatan
-                             WHERE tahun = $tahun AND jenis_pengadaan = '$jenis' 
+                             WHERE tahun = $tahun AND jenis_pengadaan = '$jenis'
                              AND bulan_rencana = $i");
         }
+    } else {
+        if ($isVarchar) {
+            $q = $db->query("SELECT SUM(nilai_anggaran) as total FROM rencana_kegiatan
+                             WHERE tahun = $tahun AND FIND_IN_SET($i, bulan_rencana)");
+        } else {
+            $q = $db->query("SELECT SUM(nilai_anggaran) as total FROM rencana_kegiatan
+                             WHERE tahun = $tahun AND bulan_rencana = $i");
+        }
     }
-    
     $chartBulanRencana[] = ($q && $row = $q->fetch_assoc()) ? (float)($row['total'] ?? 0) : 0;
-    
-    // Data realisasi per bulan
+
     $q2 = $db->query("SELECT SUM(rd.nilai_anggaran) as total
                       FROM realisasi_detail rd
                       JOIN realisasi_kegiatan r ON r.id = rd.realisasi_id
-                      WHERE YEAR(r.tanggal_mulai) = $tahun AND MONTH(r.tanggal_mulai) = $i" . 
-                      ($jenis ? " AND rd.jenis_pengadaan = '$jenis'" : ""));
+                      WHERE YEAR(r.tanggal_mulai) = $tahun AND MONTH(r.tanggal_mulai) = $i"
+                      . ($jenis ? " AND rd.jenis_pengadaan = '$jenis'" : ""));
     $chartBulanRealisasi[] = ($q2 && $row2 = $q2->fetch_assoc()) ? (float)($row2['total'] ?? 0) : 0;
-    
+
     $chartBulanLabels[] = NAMA_BULAN[$i];
 }
 
-// -------------------------------------------------------
-// Data chart: per JENIS PENGADAAN
-// -------------------------------------------------------
 $chartJenisLabels    = [];
 $chartJenisRencana   = [];
 $chartJenisRealisasi = [];
@@ -122,52 +114,42 @@ foreach (LABEL_JENIS as $key => $label) {
     $q2 = $db->query("SELECT SUM(rd.nilai_anggaran) as tot FROM realisasi_detail rd
                       JOIN realisasi_kegiatan r ON r.id=rd.realisasi_id
                       WHERE YEAR(r.tanggal_mulai)=$tahun AND rd.jenis_pengadaan='$key'");
-    
     $chartJenisLabels[]    = $label;
     $chartJenisRencana[]   = (float)($q->fetch_assoc()['tot'] ?? 0);
     $chartJenisRealisasi[] = (float)($q2->fetch_assoc()['tot'] ?? 0);
 }
 
-// -------------------------------------------------------
-// Data chart: per METODE PENGADAAN
-// -------------------------------------------------------
 $chartMetodeLabels    = [];
 $chartMetodeRencana   = [];
 $chartMetodeRealisasi = [];
 foreach (LABEL_METODE as $key => $label) {
     $q = $db->query("SELECT SUM(nilai_anggaran) as tot FROM rencana_kegiatan
                      WHERE tahun=$tahun AND metode_pengadaan='$key'");
-    if (!$q) { $chartMetodeRencana[] = 0; }
-    else      { $chartMetodeRencana[] = (float)($q->fetch_assoc()['tot'] ?? 0); }
+    $chartMetodeRencana[] = $q ? (float)($q->fetch_assoc()['tot'] ?? 0) : 0;
 
     $q2 = $db->query("SELECT SUM(rd.nilai_anggaran) as tot FROM realisasi_detail rd
                       JOIN realisasi_kegiatan r ON r.id = rd.realisasi_id
                       WHERE YEAR(r.tanggal_mulai)=$tahun AND rd.metode_pengadaan='$key'");
-    if (!$q2) { $chartMetodeRealisasi[] = 0; }
-    else       { $chartMetodeRealisasi[] = (float)($q2->fetch_assoc()['tot'] ?? 0); }
+    $chartMetodeRealisasi[] = $q2 ? (float)($q2->fetch_assoc()['tot'] ?? 0) : 0;
 
     $chartMetodeLabels[] = $label;
 }
 
-// Sisa anggaran untuk donut
-$sisaAnggaran = max(0, $totalRencana - $totalRealisasi);
-
-// Encode JSON untuk chart
-$jsonBulanLabels      = json_encode($chartBulanLabels);
-$jsonBulanRencana     = json_encode($chartBulanRencana);
-$jsonBulanRealisasi   = json_encode($chartBulanRealisasi);
-$jsonJenisLabels      = json_encode($chartJenisLabels);
-$jsonJenisRencana     = json_encode($chartJenisRencana);
-$jsonJenisRealisasi   = json_encode($chartJenisRealisasi);
-$jsonMetodeLabels     = json_encode($chartMetodeLabels);
-$jsonMetodeRencana    = json_encode($chartMetodeRencana);
-$jsonMetodeRealisasi  = json_encode($chartMetodeRealisasi);
+$jsonBulanLabels     = json_encode($chartBulanLabels);
+$jsonBulanRencana    = json_encode($chartBulanRencana);
+$jsonBulanRealisasi  = json_encode($chartBulanRealisasi);
+$jsonJenisLabels     = json_encode($chartJenisLabels);
+$jsonJenisRencana    = json_encode($chartJenisRencana);
+$jsonJenisRealisasi  = json_encode($chartJenisRealisasi);
+$jsonMetodeLabels    = json_encode($chartMetodeLabels);
+$jsonMetodeRencana   = json_encode($chartMetodeRencana);
+$jsonMetodeRealisasi = json_encode($chartMetodeRealisasi);
 
 $pageTitle = 'Laporan Perbandingan';
 include __DIR__ . '/../../includes/header.php';
 ?>
 
-<!-- ====== HEADER ====== -->
+<!-- HEADER -->
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
         <h5 class="fw-bold mb-0">Laporan Perbandingan Rencana vs Realisasi</h5>
@@ -185,18 +167,17 @@ include __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
-<!-- ====== FILTER ====== -->
+<!-- FILTER -->
 <div class="card mb-3 no-print">
     <div class="card-body py-2 px-3">
         <form method="GET" class="d-flex align-items-center gap-2 flex-wrap">
             <label class="fw-semibold text-muted mb-0" style="font-size:.8rem; white-space:nowrap;">Filter:</label>
-                <!-- Tahun: input bebas, tak terbatas -->
-                <input type="number" name="tahun"
-                       value="<?= $tahun ?>"
-                       min="2000"
-                       class="form-control form-control-sm text-center"
-                       style="width:82px;"
-                       placeholder="Tahun">
+            <input type="number" name="tahun"
+                   value="<?= $tahun ?>"
+                   min="2000"
+                   class="form-control form-control-sm text-center"
+                   style="width:82px;"
+                   placeholder="Tahun">
             <select name="jenis" class="form-select form-select-sm" style="width:165px;">
                 <option value="">Semua Jenis</option>
                 <?php foreach (LABEL_JENIS as $k => $v): ?>
@@ -211,7 +192,7 @@ include __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
-<!-- ====== STAT CARDS ====== -->
+<!-- STAT CARDS -->
 <div class="row g-3 mb-3">
     <div class="col-sm-6 col-xl-3">
         <div class="stat-card bg-blue">
@@ -243,7 +224,7 @@ include __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
-<!-- ====== PROGRESS SERAPAN ====== -->
+<!-- PROGRESS SERAPAN -->
 <div class="card mb-3">
     <div class="card-body py-3">
         <div class="d-flex justify-content-between mb-2">
@@ -260,8 +241,9 @@ include __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
-<!-- ====== GRAFIK DENGAN TOGGLE ====== -->
+<!-- GRAFIK -->
 <div class="row g-3 mb-3">
+    <!-- Bar chart dengan toggle -->
     <div class="col-md-7">
         <div class="card h-100">
             <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -269,7 +251,6 @@ include __DIR__ . '/../../includes/header.php';
                     <i class="bi bi-bar-chart-fill me-2 text-primary"></i>
                     Perbandingan Rencana vs Realisasi
                 </span>
-                <!-- Toggle tampilan -->
                 <div class="btn-group btn-group-sm" id="chartToggle">
                     <button class="btn btn-primary active" data-mode="bulan">
                         <i class="bi bi-calendar3 me-1"></i>Per Bulan
@@ -287,19 +268,22 @@ include __DIR__ . '/../../includes/header.php';
             </div>
         </div>
     </div>
+
+    <!-- Donut chart distribusi serapan -->
     <div class="col-md-5">
         <div class="card h-100">
             <div class="card-header" style="font-size:.875rem;">
                 <i class="bi bi-pie-chart-fill me-2 text-success"></i>Distribusi Serapan
             </div>
             <div class="card-body d-flex align-items-center justify-content-center">
-                <canvas id="chartSerapan" style="max-height:220px;"></canvas>
+                <!-- canvas donut — jangan isi dengan include widget di sini -->
+                <canvas id="chartSerapan" height="220"></canvas>
             </div>
         </div>
     </div>
 </div>
 
-<!-- ====== TABEL DETAIL ====== -->
+<!-- TABEL DETAIL -->
 <div class="card">
     <div class="card-header" style="font-size:.875rem;">
         <i class="bi bi-table me-2 text-primary"></i>Detail Perbandingan Rencana vs Realisasi
@@ -398,9 +382,9 @@ include __DIR__ . '/../../includes/header.php';
                         <td colspan="7" class="text-end ps-3" style="font-size:.82rem;">Total:</td>
                         <td class="text-end text-primary"><?= formatRupiah($totalRencana) ?></td>
                         <td class="text-end text-success"><?= formatRupiah($totalRealisasi) ?></td>
-                        <td class="text-end <?= ($totalRealisasi-$totalRencana) >= 0 ? 'text-danger' : 'text-success' ?>">
-                            <?= (($totalRealisasi-$totalRencana) >= 0 ? '+' : '')
-                                . formatRupiah(abs($totalRealisasi-$totalRencana)) ?>
+                        <td class="text-end <?= ($totalRealisasi - $totalRencana) >= 0 ? 'text-danger' : 'text-success' ?>">
+                            <?= (($totalRealisasi - $totalRencana) >= 0 ? '+' : '')
+                                . formatRupiah(abs($totalRealisasi - $totalRencana)) ?>
                         </td>
                         <td style="font-size:.82rem;"><?= $persenSerapan ?>%</td>
                     </tr>
@@ -411,9 +395,6 @@ include __DIR__ . '/../../includes/header.php';
 </div>
 
 <?php
-// ================================================================
-// JavaScript untuk Chart dengan Toggle
-// ================================================================
 $extraJS = '<script>
 $(document).ready(function() {
 
@@ -426,7 +407,7 @@ $(document).ready(function() {
         order: [[4, "asc"]]
     });
 
-    // ===== DATA UNTUK SEMUA MODE =====
+    // Data semua mode chart
     var chartData = {
         bulan: {
             labels:    ' . $jsonBulanLabels . ',
@@ -445,8 +426,8 @@ $(document).ready(function() {
         }
     };
 
-    // ===== BAR CHART UTAMA =====
-    var ctxUtama = document.getElementById("chartUtama").getContext("2d");
+    // Bar chart utama
+    var ctxUtama   = document.getElementById("chartUtama").getContext("2d");
     var chartUtama = new Chart(ctxUtama, {
         type: "bar",
         data: {
@@ -471,8 +452,8 @@ $(document).ready(function() {
         options: {
             responsive: true,
             maintainAspectRatio: true,
-            plugins: { 
-                legend: { position: "top", labels: { font: { size: 12 } } } 
+            plugins: {
+                legend: { position: "top", labels: { font: { size: 12 } } }
             },
             scales: {
                 y: {
@@ -489,16 +470,7 @@ $(document).ready(function() {
         }
     });
 
-    // ===== FUNGSI GANTI MODE CHART =====
-    function gantiModeChart(mode) {
-        var d = chartData[mode];
-        chartUtama.data.labels = d.labels;
-        chartUtama.data.datasets[0].data = d.rencana;
-        chartUtama.data.datasets[1].data = d.realisasi;
-        chartUtama.update();
-    }
-
-    // ===== TOGGLE BUTTON =====
+    // Toggle mode chart
     document.querySelectorAll("#chartToggle button").forEach(function(btn) {
         btn.addEventListener("click", function() {
             document.querySelectorAll("#chartToggle button").forEach(function(b) {
@@ -507,19 +479,27 @@ $(document).ready(function() {
             });
             this.classList.remove("btn-outline-primary");
             this.classList.add("btn-primary", "active");
-            gantiModeChart(this.dataset.mode);
+            var d = chartData[this.dataset.mode];
+            chartUtama.data.labels           = d.labels;
+            chartUtama.data.datasets[0].data = d.rencana;
+            chartUtama.data.datasets[1].data = d.realisasi;
+            chartUtama.update();
         });
     });
 
-    // ===== CHART DONUT =====
+    // Donut chart distribusi serapan
     var ctxDonut = document.getElementById("chartSerapan");
-    if (ctxDonut && typeof Chart !== "undefined") {
-        new Chart(ctxDonut, {
+    if (ctxDonut) {
+        new Chart(ctxDonut.getContext("2d"), {
             type: "doughnut",
             data: {
                 labels: ["Terealisasi", "Sisa Rencana", "Di luar Rencana"],
                 datasets: [{
-                    data: [' . (float)$totalRealisasi . ', ' . (float)$sisaAnggaran . ', ' . (float)$totalLuar . '],
+                    data: [
+                        ' . (float)$totalRealisasi . ',
+                        ' . (float)$sisaAnggaran . ',
+                        ' . (float)$totalLuar . '
+                    ],
                     backgroundColor: ["#2ec4b6", "#e2e8f0", "#f8961e"],
                     borderWidth: 3,
                     borderColor: "#fff",
@@ -528,9 +508,13 @@ $(document).ready(function() {
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 cutout: "65%",
                 plugins: {
-                    legend: { position: "bottom", labels: { font: { size: 12 }, padding: 16 } },
+                    legend: {
+                        position: "bottom",
+                        labels: { font: { size: 12 }, padding: 16 }
+                    },
                     tooltip: {
                         callbacks: {
                             label: function(ctx) {

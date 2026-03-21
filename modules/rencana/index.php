@@ -1,6 +1,6 @@
 <?php
 /**
- * modules/rencana/index.php
+ * modules/rencana/index.php  — dengan tombol Import Excel
  */
 
 session_start();
@@ -18,13 +18,11 @@ if ($jenis && array_key_exists($jenis, LABEL_JENIS))
     $where[] = "r.jenis_pengadaan = '" . $db->real_escape_string($jenis) . "'";
 $whereStr = 'WHERE ' . implode(' AND ', $where);
 
-// Cek tabel realisasi
 $tabelAda = false;
 $c1 = $db->query("SHOW TABLES LIKE 'realisasi_kegiatan'");
 $c2 = $db->query("SHOW TABLES LIKE 'realisasi_detail'");
 if ($c1 && $c1->num_rows > 0 && $c2 && $c2->num_rows > 0) $tabelAda = true;
 
-// Urutan dari SQL — bukan DataTable, agar konsisten saat export/print juga
 $orderSQL = ($urutan === 'id') ? 'r.id ASC' : 'r.nama_kegiatan ASC';
 
 if ($tabelAda) {
@@ -61,6 +59,7 @@ $totalQ        = $db->query("SELECT SUM(nilai_anggaran) as total FROM rencana_ke
 $totalAnggaran = ($totalQ !== false) ? ($totalQ->fetch_assoc()['total'] ?? 0) : 0;
 
 $tahunSekarang = (int)date('Y');
+$isManajer     = in_array($_SESSION['user_role'] ?? '', ['admin', 'manajer_pengadaan']);
 
 $pageTitle = 'Rencana Kegiatan';
 include __DIR__ . '/../../includes/header.php';
@@ -100,7 +99,6 @@ include __DIR__ . '/../../includes/header.php';
 .dataTables_info { font-size: .8rem; color: #64748b; }
 .dataTables_paginate .paginate_button { font-size: .8rem !important; padding: 3px 8px !important; }
 
-/* Warna custom badge metode pengadaan */
 .bg-purple { background-color: #7c3aed !important; }
 .badge.bg-purple { color: white !important; }
 </style>
@@ -114,9 +112,18 @@ include __DIR__ . '/../../includes/header.php';
         </small>
     </div>
     <div class="d-flex gap-2 flex-wrap">
-        <a href="<?= BASE_URL ?>/modules/rencana/form.php?<?= http_build_query(['ref_tahun'=>$tahun,'ref_jenis'=>$jenis,'ref_urutan'=>$urutan]) ?>" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus-lg me-1"></i>Tambah Rencana
+        <!-- Tambah: semua role bisa, manajer saja sesuai requireManajer di form.php -->
+        <a href="<?= BASE_URL ?>/modules/rencana/form.php?<?= http_build_query(['ref_tahun'=>$tahun,'ref_jenis'=>$jenis,'ref_urutan'=>$urutan]) ?>"
+           class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg me-1"></i>Tambah
         </a>
+
+        <!-- Import: semua role bisa -->
+        <a href="<?= BASE_URL ?>/modules/rencana/import.php"
+           class="btn btn-outline-info btn-sm">
+            <i class="bi bi-file-earmark-arrow-up me-1"></i>Import Excel
+        </a>
+
         <a href="<?= BASE_URL ?>/modules/rencana/print.php?tahun=<?= $tahun ?>&jenis=<?= urlencode($jenis) ?>"
            target="_blank" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-printer me-1"></i>Cetak
@@ -133,7 +140,6 @@ include __DIR__ . '/../../includes/header.php';
     <div class="card-body py-2 px-3">
         <div class="d-flex align-items-center gap-2 flex-wrap">
 
-            <!-- Tampilkan N entri — di LUAR form, hanya kontrol DataTable -->
             <div class="dt-entries-wrapper">
                 <span>Tampilkan</span>
                 <select id="dtLengthCustom" class="form-select form-select-sm">
@@ -149,12 +155,9 @@ include __DIR__ . '/../../includes/header.php';
 
             <div class="vr mx-1"></div>
 
-            <!-- Form filter + urutan — submit ke server -->
             <form method="GET" class="d-flex align-items-center gap-2 flex-wrap mb-0">
-
                 <label class="fw-semibold text-muted mb-0" style="font-size:.8rem; white-space:nowrap;">Filter:</label>
 
-                <!-- Tahun: input bebas, tak terbatas -->
                 <input type="number" name="tahun"
                        value="<?= $tahun ?>"
                        min="2000"
@@ -171,7 +174,6 @@ include __DIR__ . '/../../includes/header.php';
 
                 <div class="vr mx-1"></div>
 
-                <!-- FIX 2: Urutan dari server -->
                 <label class="fw-semibold text-muted mb-0" style="font-size:.8rem; white-space:nowrap;">Urutan:</label>
                 <select name="urutan" class="form-select form-select-sm" style="width:148px;">
                     <option value="nama" <?= $urutan === 'nama' ? 'selected' : '' ?>>A–Z Nama Kegiatan</option>
@@ -183,9 +185,7 @@ include __DIR__ . '/../../includes/header.php';
                 </button>
                 <a href="?" class="btn btn-sm btn-outline-secondary">Reset</a>
             </form>
-            <!-- END form — search di luar agar tidak ikut submit -->
 
-            <!-- FIX 3: Search benar-benar di luar form -->
             <div class="ms-auto dt-search-wrapper">
                 <i class="bi bi-search"></i>
                 <input type="text" id="dtSearchCustom"
@@ -219,14 +219,14 @@ include __DIR__ . '/../../includes/header.php';
                 <tbody>
                 <?php
                 $metodeColors = [
-                                    'pembelian_langsung'   => 'success',
-                                    'tender_terbatas_spk'  => 'info',
-                                    'tender_terbatas_pkp'  => 'purple',
-                                    'tender_terbatas'      => 'info',
-                                    'tender_umum'          => 'danger',
-                                    'e_purchasing'         => 'warning',
-                                    'swakelola'            => 'secondary',
-                                ];
+                    'pembelian_langsung'   => 'success',
+                    'tender_terbatas_spk'  => 'info',
+                    'tender_terbatas_pkp'  => 'purple',
+                    'tender_terbatas'      => 'info',
+                    'tender_umum'          => 'danger',
+                    'e_purchasing'         => 'warning',
+                    'swakelola'            => 'secondary',
+                ];
                 foreach ($rows as $no => $row):
                     $sr = $row['status_realisasi'] ?? null;
                     if ($sr === 'selesai')    { $srLabel = 'Selesai'; $srClass = 'bg-success'; }
@@ -267,7 +267,8 @@ include __DIR__ . '/../../includes/header.php';
                     </td>
                     <td class="text-center no-print">
                         <div class="btn-group btn-group-sm">
-                            <a href="form.php?id=<?= $row['id'] ?>&<?= http_build_query(['ref_tahun'=>$tahun,'ref_jenis'=>$jenis,'ref_urutan'=>$urutan]) ?>" class="btn btn-outline-primary" title="Edit">
+                            <a href="form.php?id=<?= $row['id'] ?>&<?= http_build_query(['ref_tahun'=>$tahun,'ref_jenis'=>$jenis,'ref_urutan'=>$urutan]) ?>"
+                               class="btn btn-outline-primary" title="Edit">
                                 <i class="bi bi-pencil"></i>
                             </a>
                             <button onclick="konfirmasiHapus('hapus.php?id=<?= $row['id'] ?>&<?= http_build_query(['tahun'=>$tahun,'jenis'=>$jenis,'urutan'=>$urutan]) ?>','<?= addslashes($row['nama_kegiatan']) ?>')"
@@ -282,7 +283,6 @@ include __DIR__ . '/../../includes/header.php';
             </table>
         </div>
 
-        <!-- Info & Paginasi custom -->
         <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
             <div id="dtInfoCustom" class="dataTables_info"></div>
             <div id="dtPaginateCustom"></div>
@@ -297,7 +297,6 @@ $(document).ready(function() {
     var table = $("#tabelRencana").DataTable({
         dom:        "rt",
         pageLength: 25,
-        /* order: [] — urutan sudah dari SQL, DataTable tidak sort ulang */
         order:      [],
         columnDefs: [{ orderable: false, targets: [0, 7, 8] }],
 
@@ -317,7 +316,7 @@ $(document).ready(function() {
                              "<i class=\"bi bi-search fs-2 d-block mb-2\"></i>" +
                              "Tidak ada data yang cocok" +
                          "</div>",
-            info:      "Menampilkan _START_–_END_ dari _TOTAL_ entri",
+            info:      "Menampilkan _START_\u2013_END_ dari _TOTAL_ entri",
             infoEmpty: "Tidak ada data",
             paginate: {
                 previous: "<i class=\"bi bi-chevron-left\"></i>",
@@ -326,7 +325,6 @@ $(document).ready(function() {
         }
     });
 
-    /* Update info & paginate setiap draw */
     function updateControls() {
         var info  = table.page.info();
         var total = info.recordsTotal;
@@ -337,7 +335,7 @@ $(document).ready(function() {
         } else if (shown === 0) {
             $("#dtInfoCustom").text("Tidak ada data yang cocok dengan pencarian");
         } else {
-            var txt = "Menampilkan " + (info.start + 1) + "–" + info.end +
+            var txt = "Menampilkan " + (info.start + 1) + "\u2013" + info.end +
                       " dari " + shown + " entri";
             if (shown !== total) txt += " (difilter dari " + total + " total)";
             $("#dtInfoCustom").text(txt);
@@ -351,7 +349,6 @@ $(document).ready(function() {
 
     table.on("draw", updateControls).draw();
 
-    /* SEARCH — vanilla JS, di luar form, tidak akan trigger submit */
     var searchEl = document.getElementById("dtSearchCustom");
     if (searchEl) {
         searchEl.addEventListener("input", function() {
@@ -362,7 +359,6 @@ $(document).ready(function() {
         });
     }
 
-    /* LENGTH — termasuk opsi Semua (-1) */
     $("#dtLengthCustom").on("change", function() {
         var val = $(this).val();
         table.page.len(val === "-1" ? -1 : parseInt(val)).draw();

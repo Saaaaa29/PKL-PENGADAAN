@@ -12,11 +12,14 @@ requireAdmin();
 $db = getDB();
 $aksi = $_POST['aksi'] ?? '';
 
+// ── Daftar role yang valid ─────────────────────────────────────────────────
+$validRoles = ['admin', 'manajer_pengadaan', 'staf_pengadaan'];
+
 if ($aksi === 'tambah') {
     $username = trim($_POST['username'] ?? '');
     $nama     = trim($_POST['nama_lengkap'] ?? '');
     $pass     = $_POST['password'] ?? '';
-    $role     = in_array($_POST['role'], ['admin','user']) ? $_POST['role'] : 'user';
+    $role     = in_array($_POST['role'], $validRoles) ? $_POST['role'] : 'staf_pengadaan';
 
     if (!$username || !$nama || !$pass) {
         setFlash('error', 'Semua field wajib diisi.');
@@ -34,13 +37,18 @@ if ($aksi === 'tambah') {
         $stmt->close();
     }
 } elseif ($aksi === 'edit') {
-    $id   = (int)($_POST['id'] ?? 0);
+    $id       = (int)($_POST['id'] ?? 0);
     $username = trim($_POST['username'] ?? '');
     $nama     = trim($_POST['nama_lengkap'] ?? '');
     $pass     = $_POST['password'] ?? '';
-    $role     = in_array($_POST['role'], ['admin','user']) ? $_POST['role'] : 'user';
+    $role     = in_array($_POST['role'], $validRoles) ? $_POST['role'] : 'staf_pengadaan';
 
     if ($pass) {
+        if (strlen($pass) < 8) {
+            setFlash('error', 'Password minimal 8 karakter.');
+            header('Location: index.php');
+            exit;
+        }
         $hash = password_hash($pass, PASSWORD_BCRYPT);
         $stmt = $db->prepare("UPDATE users SET username=?, nama_lengkap=?, password=?, role=? WHERE id=?");
         $stmt->bind_param('ssssi', $username, $nama, $hash, $role, $id);

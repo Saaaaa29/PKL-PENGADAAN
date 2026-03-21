@@ -14,11 +14,30 @@ $rows  = $users->fetch_all(MYSQLI_ASSOC);
 
 $pageTitle = 'Manajemen User';
 include __DIR__ . '/../../includes/header.php';
+
+// Helper badge role
+function roleBadge(string $role): string {
+    [$label, $color] = match($role) {
+        'admin'             => ['Admin',             'danger'],
+        'manajer_pengadaan' => ['Manajer Pengadaan', 'primary'],
+        'staf_pengadaan'    => ['Staf Pengadaan',    'secondary'],
+        default             => [ucfirst($role),       'light'],
+    };
+    return "<span class=\"badge bg-$color\">$label</span>";
+}
+
+// Opsi role — dipakai di modal tambah & edit
+$roleOptions = [
+    'staf_pengadaan'    => 'Staf Pengadaan',
+    'manajer_pengadaan' => 'Manajer Pengadaan',
+    'admin'             => 'Admin',
+];
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h5 class="fw-bold mb-0">Manajemen Pengguna</h5>
-    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalTambahUser">
+    <button type="button" class="btn btn-primary btn-sm"
+            data-bs-toggle="modal" data-bs-target="#modalTambahUser">
         <i class="bi bi-person-plus-fill me-1"></i>Tambah User
     </button>
 </div>
@@ -42,16 +61,17 @@ include __DIR__ . '/../../includes/header.php';
                     <td class="ps-3 text-muted"><?= $no + 1 ?></td>
                     <td class="fw-semibold"><?= sanitize($u['username']) ?></td>
                     <td><?= sanitize($u['nama_lengkap']) ?></td>
-                    <td>
-                        <span class="badge <?= $u['role'] === 'admin' ? 'bg-danger' : 'bg-secondary' ?>">
-                            <?= ucfirst($u['role']) ?>
-                        </span>
-                    </td>
+                    <td><?= roleBadge($u['role']) ?></td>
                     <td class="text-muted"><?= date('d/m/Y', strtotime($u['created_at'])) ?></td>
                     <td class="text-center">
                         <div class="btn-group btn-group-sm">
                             <button class="btn btn-outline-primary"
-                                    onclick="editUser(<?= $u['id'] ?>,'<?= addslashes($u['username']) ?>','<?= addslashes($u['nama_lengkap']) ?>','<?= $u['role'] ?>')">
+                                    onclick="editUser(
+                                        <?= $u['id'] ?>,
+                                        '<?= addslashes($u['username']) ?>',
+                                        '<?= addslashes($u['nama_lengkap']) ?>',
+                                        '<?= $u['role'] ?>'
+                                    )">
                                 <i class="bi bi-pencil"></i>
                             </button>
                             <?php if ($u['id'] != $_SESSION['user_id']): ?>
@@ -69,7 +89,7 @@ include __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
-<!-- Modal Tambah -->
+<!-- ── Modal Tambah ─────────────────────────────────────────────────────── -->
 <div class="modal fade" id="modalTambahUser" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -82,7 +102,8 @@ include __DIR__ . '/../../includes/header.php';
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Username <span class="text-danger">*</span></label>
-                        <input type="text" name="username" class="form-control" required placeholder="Huruf kecil dan angka">
+                        <input type="text" name="username" class="form-control" required
+                               placeholder="Huruf kecil dan angka">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Nama Lengkap <span class="text-danger">*</span></label>
@@ -90,26 +111,30 @@ include __DIR__ . '/../../includes/header.php';
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Password <span class="text-danger">*</span></label>
-                        <input type="password" name="password" class="form-control" required placeholder="Minimal 8 karakter">
+                        <input type="password" name="password" class="form-control" required
+                               placeholder="Minimal 8 karakter">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Role</label>
                         <select name="role" class="form-select">
-                            <option value="user">User</option>
-                            <option value="admin">Admin</option>
+                            <?php foreach ($roleOptions as $val => $label): ?>
+                            <option value="<?= $val ?>"><?= $label ?></option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Simpan</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i>Simpan
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Modal Edit -->
+<!-- ── Modal Edit ───────────────────────────────────────────────────────── -->
 <div class="modal fade" id="modalEditUser" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -122,28 +147,35 @@ include __DIR__ . '/../../includes/header.php';
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Username</label>
-                        <input type="text" id="editUsername" name="username" class="form-control" required>
+                        <label class="form-label">Username <span class="text-danger">*</span></label>
+                        <input type="text" id="editUsername" name="username"
+                               class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Nama Lengkap</label>
-                        <input type="text" id="editNama" name="nama_lengkap" class="form-control" required>
+                        <label class="form-label">Nama Lengkap <span class="text-danger">*</span></label>
+                        <input type="text" id="editNama" name="nama_lengkap"
+                               class="form-control" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Password Baru</label>
-                        <input type="password" name="password" class="form-control" placeholder="Kosongkan jika tidak ingin mengganti">
+                        <input type="password" name="password" class="form-control"
+                               placeholder="Kosongkan jika tidak ingin mengganti">
+                        <div class="form-text">Minimal 8 karakter jika diisi.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Role</label>
                         <select name="role" id="editRole" class="form-select">
-                            <option value="user">User</option>
-                            <option value="admin">Admin</option>
+                            <?php foreach ($roleOptions as $val => $label): ?>
+                            <option value="<?= $val ?>"><?= $label ?></option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Perbarui</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i>Perbarui
+                    </button>
                 </div>
             </form>
         </div>
@@ -160,6 +192,11 @@ function editUser(id, username, nama, role) {
     new bootstrap.Modal(document.getElementById("modalEditUser")).show();
 }
 
+function konfirmasiHapus(url, nama) {
+    if (confirm("Hapus user \"" + nama + "\"?\nData tidak dapat dikembalikan."))
+        window.location.href = url;
+}
+
 $(document).ready(function() {
     $("#tabelUser").DataTable({
         dom: "t",
@@ -171,4 +208,4 @@ $(document).ready(function() {
 </script>';
 
 include __DIR__ . '/../../includes/footer.php';
-?> 
+?>
